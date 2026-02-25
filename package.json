@@ -7,7 +7,9 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "start:electron": "electron .",
-    "build:pkg": "npx pkg . --targets node18-macos-x64,node18-linux-x64,node18-win-x64 --out-path dist"
+    "build:pkg": "npx pkg . --targets node18-macos-x64,node18-linux-x64,node18-win-x64 --out-path dist",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --windows nsis"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
@@ -18,13 +20,36 @@
   ,
   "devDependencies": {
     "pkg": "^5.8.1",
-    "electron": "^25.0.0"
+    "electron": "^25.0.0",
+    "electron-builder": "^24.7.0"
   },
   "bin": "server.js",
   "pkg": {
     "assets": ["public/**/*"],
     "scripts": [],
     "targets": ["node18-macos-x64","node18-linux-x64","node18-win-x64"]
+  }
+  ,
+  "build": {
+    "appId": "com.example.azdo-pipeline-dashboard",
+    "productName": "Pipeline Dashboard",
+    "files": [
+      "**/*",
+      "!node_modules/.cache/**"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
 
