@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Configuración - Pipeline Dashboard</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body class="p-8 bg-slate-900 text-slate-100">
+  <div class="max-w-2xl mx-auto">
+    <div class="bg-surface border border-border rounded-lg p-6 shadow-md">
+      <h1 class="text-2xl font-semibold mb-2">Configuración</h1>
+      <p class="text-sm text-text-muted mb-4">Introduce tus credenciales de Azure DevOps. El token se guardará de forma segura en el llavero del sistema.</p>
+
+      <div class="grid grid-cols-1 gap-4">
+        <label class="block">
+          <div class="text-sm text-text-muted mb-1">Organización (AZDO_ORG)</div>
+          <input id="org" class="w-full p-3 rounded bg-slate-800 border border-slate-700" />
+        </label>
+
+        <label class="block">
+          <div class="text-sm text-text-muted mb-1">Proyecto (AZDO_PROJECT)</div>
+          <input id="project" class="w-full p-3 rounded bg-slate-800 border border-slate-700" />
+        </label>
+
+        <label class="block relative">
+          <div class="text-sm text-text-muted mb-1">Personal Access Token (AZDO_PAT)</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="pat" type="password" class="flex-1 p-3 rounded bg-slate-800 border border-slate-700" />
+            <button id="btn-show" title="Mostrar" class="px-3 py-2 bg-slate-700 rounded">Mostrar</button>
+            <button id="btn-copy" title="Copiar" class="px-3 py-2 bg-slate-700 rounded">Copiar</button>
+          </div>
+          <div class="text-xs text-text-muted mt-2">Guarda un Personal Access Token con permisos para leer pipelines y ejecuciones.</div>
+        </label>
+      </div>
+
+      <div class="mt-6 flex items-center gap-3">
+        <button id="save" class="px-4 py-2 bg-emerald-600 rounded text-white font-medium">Guardar</button>
+        <button id="cancel" class="px-4 py-2 bg-slate-700 rounded">Cancelar</button>
+        <div id="spinner" class="ml-2 hidden"><span class="spinner" style="width:18px;height:18px;border-width:2px"></span></div>
+        <div id="msg" class="ml-3 text-sm text-rose-400 hidden"></div>
+        <div id="msg-success" class="ml-3 text-sm text-emerald-400 hidden">Guardado correctamente</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./settings.js"></script>
+</body>
+</html>

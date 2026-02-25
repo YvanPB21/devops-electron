@@ -13,6 +13,7 @@ const $lastUpdate = document.getElementById("last-update");
 const $orgProject = document.getElementById("org-project");
 const $summary = document.getElementById("summary");
 const $groupBy = document.getElementById("group-by");
+const $btnSettings = document.getElementById('btn-settings');
 let pipelinesCache = [];
 // Track which groups are expanded (store decoded group keys)
 const expandedGroups = new Set();
@@ -115,6 +116,18 @@ async function fetchPipelines() {
   } finally {
     $btnRefresh.disabled = false;
   }
+}
+
+// Open settings window (Electron) when user clicks settings button
+if ($btnSettings) {
+  $btnSettings.addEventListener('click', () => {
+    if (window.electronAPI && window.electronAPI.openSettings) {
+      window.electronAPI.openSettings();
+    } else {
+      // Fallback: navigate to settings page in browser mode
+      window.location.href = '/public/settings.html';
+    }
+  });
 }
 
 function renderTable(pipelines) {
