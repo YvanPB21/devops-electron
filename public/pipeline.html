@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Pipeline — detalle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="bg-slate-900 text-slate-100 antialiased">
+    <header class="bg-slate-800 border-b border-slate-700 p-4">
+      <div class="w-full mx-4 flex items-center justify-between">
+        <div>
+          <a href="index.html" class="text-slate-300 hover:text-white">← Volver</a>
+        </div>
+        <div id="pipeline-info" class="text-sm text-slate-300"></div>
+        <div class="flex items-center gap-2">
+          <input id="run-branch" type="text" value="master" placeholder="branch (ej. main)" class="bg-slate-700 text-slate-100 text-sm rounded px-2 py-1 w-40" />
+          <button id="btn-run" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-md text-sm">Run pipeline</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="w-full mx-4 p-6">
+      <div id="error" class="error-banner hidden"></div>
+      <div id="runs-container">
+        <div id="loading" class="loading">
+          <div class="spinner"></div>
+          <p class="text-slate-400">Cargando runs…</p>
+        </div>
+
+        <div id="runs-list" class="hidden">
+          <div class="table-wrapper w-full overflow-x-auto rounded-lg border border-slate-700">
+            <table class="min-w-full divide-y divide-slate-700">
+              <thead class="bg-slate-800">
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Run</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Estado</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Resultado</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Fecha</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Duración</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Detalles</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Link</th>
+                </tr>
+              </thead>
+              <tbody id="runs-body" class="bg-slate-900"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Run modal -->
+    <div id="run-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-50">
+      <div class="bg-slate-800 rounded-lg w-full max-w-lg p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold">Run pipeline</h3>
+          <button id="run-modal-close" class="text-slate-400 hover:text-white">✕</button>
+        </div>
+        <div class="space-y-3">
+          <label class="text-sm text-slate-300">Branch/tag</label>
+          <input id="modal-branch" type="text" class="w-full bg-slate-700 text-slate-100 rounded px-3 py-2" placeholder="main" />
+
+          <label class="text-sm text-slate-300">Variables (JSON)</label>
+          <textarea id="modal-variables" class="w-full bg-slate-700 text-slate-100 rounded px-3 py-2 h-24" placeholder='{"env":"dev"}'></textarea>
+
+          <div class="flex items-center justify-end gap-2">
+            <button id="run-modal-cancel" class="px-3 py-1.5 rounded bg-slate-700 text-slate-200">Cancel</button>
+            <button id="run-modal-submit" class="px-3 py-1.5 rounded bg-emerald-500 text-white">Run</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="pipeline.js"></script>
+  </body>
+</html>
