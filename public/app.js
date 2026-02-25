@@ -83,7 +83,15 @@ async function fetchPipelines() {
   $errorBanner.classList.add("hidden");
 
   try {
-    const res = await fetch("/api/pipelines");
+    // include folder query when folder filter is enabled so server can return
+    // last-run data only for that folder (reduces overall latency)
+    let url = "/api/pipelines";
+    if ($folderFilter && $folderFilter.checked) {
+      const raw = ($folderPath && $folderPath.value) || "";
+      // keep user's backslashes; encodeURIComponent will handle them
+      url += `?folder=${encodeURIComponent(raw)}`;
+    }
+    const res = await fetch(url);
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

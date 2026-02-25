@@ -26,8 +26,12 @@ const HEADERS = {
 };
 
 // ── Cache en memoria ────────────────────────────────────────────────────────
-const CACHE_TTL_MS = 30 * 1000; // 30 segundos
+// Increase default TTL to reduce repeated slow pulls. Can be tuned via env.
+const CACHE_TTL_MS = parseInt(process.env.CACHE_TTL_MS || String(2 * 60 * 1000), 10); // default 2 minutes
 let cache = { data: null, timestamp: 0 };
+
+// Concurrency for parallel Azure requests (can be tuned via env var)
+const AZDO_CONCURRENCY = parseInt(process.env.AZDO_CONCURRENCY || '20', 10);
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 async function azdoFetch(url) {
@@ -61,19 +65,31 @@ function computeDuration(createdDate, finishedDate) {
 }
 
 // ── Obtener pipelines con su último run ─────────────────────────────────────
-async function fetchPipelinesWithLatestRun() {
+async function fetchPipelinesWithLatestRun(folderFilter = null) {
   // 1. Listar pipelines
   const pipelinesRes = await azdoFetch(
     `${BASE_URL}/_apis/pipelines?api-version=7.1`
   );
   const pipelines = pipelinesRes.value || [];
 
+  // If a folder filter is provided, normalize and filter the pipelines list early
+  let filteredPipelines = pipelines;
+  if (folderFilter) {
+    const raw = String(folderFilter || "");
+    const target = raw.replace(/\//g, "\\").replace(/\\+$/g, "");
+    const lowerTarget = target.toLowerCase();
+    filteredPipelines = pipelines.filter(p => {
+      const folder = (p.folder || "").replace(/\\+$/g, "");
+      return folder.toLowerCase().startsWith(lowerTarget);
+    });
+  }
+
   // 2. Obtener el último run de cada pipeline en paralelo (con límite)
-  const CONCURRENCY = 10;
+  const CONCURRENCY = AZDO_CONCURRENCY || 10;
   const results = [];
 
-  for (let i = 0; i < pipelines.length; i += CONCURRENCY) {
-    const batch = pipelines.slice(i, i + CONCURRENCY);
+  for (let i = 0; i < filteredPipelines.length; i += CONCURRENCY) {
+    const batch = filteredPipelines.slice(i, i + CONCURRENCY);
     const batchResults = await Promise.all(
       batch.map(async (pipeline) => {
         try {
@@ -86,7 +102,6 @@ async function fetchPipelinesWithLatestRun() {
             ? latestRun._links?.web?.href ||
               `${BASE_URL}/_build/results?buildId=${latestRun.id}`
             : `${BASE_URL}/_build?definitionId=${pipeline.id}`;
-
           return {
             pipelineId: pipeline.id,
             pipelineName: pipeline.name,
@@ -125,6 +140,31 @@ async function fetchPipelinesWithLatestRun() {
   return results;
 }
 
+// Fast basic listing: returns pipelines without querying each latest run.
+async function fetchPipelinesBasic(folderFilter = null) {
+  const pipelinesRes = await azdoFetch(`${BASE_URL}/_apis/pipelines?api-version=7.1`);
+  const pipelines = pipelinesRes.value || [];
+  let filtered = pipelines;
+  if (folderFilter) {
+    const raw = String(folderFilter || "");
+    const target = raw.replace(/\//g, "\\").replace(/\\+$/g, "");
+    const lowerTarget = target.toLowerCase();
+    filtered = pipelines.filter(p => ((p.folder || "").replace(/\\+$/g, "")).toLowerCase().startsWith(lowerTarget));
+  }
+  return filtered.map(pipeline => ({
+    pipelineId: pipeline.id,
+    pipelineName: pipeline.name,
+    folder: pipeline.folder || "\\",
+    state: null,
+    result: null,
+    createdDate: null,
+    finishedDate: null,
+    duration: null,
+    runId: null,
+    webUrl: `${BASE_URL}/_build?definitionId=${pipeline.id}`
+  }));
+}
+
 // ── Servir frontend estático ────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -134,6 +174,36 @@ app.get("/api/pipelines", async (req, res) => {
     const now = Date.now();
     if (cache.data && now - cache.timestamp < CACHE_TTL_MS) {
       return res.json({ data: cache.data, cached: true });
+    }
+    // If a folder query param is provided, only fetch pipelines within that folder
+    const folder = req.query.folder || null;
+
+    // If caller requested a folder-scoped list, fetch full details (including last run)
+    // for that folder synchronously so client gets the last run immediately.
+    if (folder) {
+      const data = await fetchPipelinesWithLatestRun(folder);
+      cache = { data, timestamp: now };
+      return res.json({ data, cached: false });
+    }
+
+    // Otherwise, if we don't have a cached full dataset yet, return a fast/basic list
+    // (no per-pipeline run queries) and kick off a background refresh.
+    if (!cache.data) {
+      try {
+        const basic = await fetchPipelinesBasic(folder);
+        // Start full fetch in background to populate cache for subsequent requests
+        fetchPipelinesWithLatestRun()
+          .then((full) => {
+            cache = { data: full, timestamp: Date.now() };
+            console.log('Pipelines cache populated (background).');
+          })
+          .catch((e) => console.error('Background pipelines fetch failed:', e && e.message ? e.message : e));
+
+        return res.json({ data: basic, cached: false, partial: true });
+      } catch (e) {
+        // If basic listing failed for some reason, fall back to full fetch below
+        console.warn('Fast pipelines listing failed, falling back to full fetch:', e && e.message ? e.message : e);
+      }
     }
 
     const data = await fetchPipelinesWithLatestRun();
@@ -278,4 +348,16 @@ app.listen(PORT, () => {
   console.log(`✅ Dashboard corriendo en http://localhost:${PORT}`);
   console.log(`   Org: ${AZDO_ORG} | Proyecto: ${AZDO_PROJECT}`);
 });
+
+// Pre-warm pipelines cache asynchronously on startup to reduce first-request latency
+(async () => {
+  try {
+    console.log('Pre-warming pipelines cache...');
+    const data = await fetchPipelinesWithLatestRun();
+    cache = { data, timestamp: Date.now() };
+    console.log(`Pipelines cache pre-warmed (${data.length} items)`);
+  } catch (e) {
+    console.error('Pre-warm failed:', e && e.message ? e.message : e);
+  }
+})();
 
