@@ -242,10 +242,12 @@ tbody tr:last-child td {
 }
 
 @keyframes pulse {
+
   0%,
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.3;
   }
@@ -302,11 +304,11 @@ a.run-link:hover {
 
 /* ── Group headers & rows ───────────────────────────────────────────────── */
 .group-header td {
-  background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
   color: var(--accent);
   font-weight: 700;
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .group-header {
@@ -336,8 +338,8 @@ a.run-link:hover {
 }
 
 .folder-filter-label input[type="text"] {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.04);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
   color: var(--text);
   padding: 6px 8px;
   border-radius: 6px;
@@ -348,44 +350,377 @@ a.run-link:hover {
 .folder-filter-label input[type="text"]:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(88,166,255,0.06);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.06);
 }
 
-/* Timeline and logs styling */
+/* ── Timeline Steps ─────────────────────────────────────────────────────── */
 .timeline-step {
-  border-left: 3px solid rgba(255,255,255,0.03);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 6px;
+  transition: border-color 0.2s;
 }
 
-.timeline-step .step-details {
-  background: rgba(255,255,255,0.01);
-  padding: 8px;
-  border-radius: 6px;
+.timeline-step.step-succeeded {
+  border-left-color: var(--green);
 }
 
-.status-badge {
-  display: inline-flex;
+.timeline-step.step-failed {
+  border-left-color: var(--red);
+}
+
+.timeline-step.step-canceled {
+  border-left-color: var(--gray);
+}
+
+.timeline-step.step-running {
+  border-left-color: var(--blue);
+}
+
+.timeline-step.step-pending {
+  border-left-color: var(--border);
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.step-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.step-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.step-name {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.step-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.step-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.step-duration {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.btn-toggle-log {
+  background: rgba(88, 166, 255, 0.1);
+  color: var(--accent);
+  border: 1px solid rgba(88, 166, 255, 0.2);
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.btn-toggle-log:hover {
+  background: rgba(88, 166, 255, 0.2);
+  border-color: var(--accent);
+}
+
+.btn-toggle-log.active {
+  background: rgba(88, 166, 255, 0.25);
+  border-color: var(--accent);
+}
+
+.step-children {
+  margin-top: 6px;
+}
+
+/* ── Inline Log Container ───────────────────────────────────────────────── */
+.step-log-container {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.step-log-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.step-log-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.step-log-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.step-log-actions button {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  padding: 3px 8px;
+  border-radius: var(--radius);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.step-log-actions button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.step-log-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding: 12px 0;
+}
+
+.spinner-sm {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.step-log-content {
+  background: #0d1117;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: #c9d1d9;
+  white-space: pre;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 400px;
+  tab-size: 4;
+}
+
+.step-log-content.wrap {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── Collapsible Steps ──────────────────────────────────────────────────── */
+.step-header.collapsible {
+  cursor: pointer;
+  user-select: none;
+}
+
+.step-header.collapsible:hover {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius);
+}
+
+.step-caret {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+  transition: transform 0.15s;
+}
+
+/* ── Pipeline Checkboxes ────────────────────────────────────────────────── */
+.pipeline-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+th .pipeline-checkbox {
+  vertical-align: middle;
+}
+
+.group-header .group-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* ── Floating Bulk Action Bar ───────────────────────────────────────────── */
+.bulk-action-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 14px 24px;
+  background: rgba(22, 27, 34, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(88, 166, 255, 0.2);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
+  transform: translateY(100%);
+  transition: transform 0.25s ease;
+}
+
+.bulk-action-bar.visible {
+  transform: translateY(0);
+}
+
+.bulk-action-bar .bulk-info {
+  font-size: 0.9rem;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.bulk-action-bar .bulk-info strong {
+  color: var(--accent);
+}
+
+.bulk-action-bar .btn-bulk-run {
+  background: linear-gradient(135deg, #238636, #2ea043);
+  color: #fff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-weight: 600;
 }
 
-.log-toolbar {
+.bulk-action-bar .btn-bulk-run:hover {
+  background: linear-gradient(135deg, #2ea043, #3fb950);
+  box-shadow: 0 0 12px rgba(46, 160, 67, 0.3);
+}
+
+.bulk-action-bar .btn-bulk-run:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bulk-action-bar .btn-bulk-clear {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.bulk-action-bar .btn-bulk-clear:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+/* Bulk run result toast */
+.bulk-result-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  max-width: 400px;
+  max-height: 300px;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  font-size: 0.85rem;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.bulk-result-toast .toast-header {
+  font-weight: 600;
+  margin-bottom: 8px;
   display: flex;
-  gap: 8px;
+  justify-content: space-between;
   align-items: center;
 }
 
-pre#log-text {
-  white-space: pre-wrap;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
-  font-size: 0.9rem;
+.bulk-result-toast .toast-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+
+.bulk-result-toast .toast-item {
+  padding: 3px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bulk-result-toast .toast-item.success {
+  color: var(--green);
+}
+
+.bulk-result-toast .toast-item.error {
+  color: var(--red);
 }
 
 /* make summary stand out slightly */
 .summary {
-  background: rgba(255,255,255,0.02);
+  background: rgba(255, 255, 255, 0.02);
   padding: 8px 12px;
   border-radius: 8px;
 }
@@ -406,4 +741,3 @@ pre#log-text {
     padding: 8px 10px;
   }
 }
-
