@@ -1,5 +1,14 @@
 // ── Config ───────────────────────────────────────────────────────────────────
 const REFRESH_INTERVAL = 30_000; // 30 segundos
+
+// ── Default branch per environment ──────────────────────────────────────────
+const ENV_BRANCH_MAP = { dev: 'master', uat: 'main', stg: 'master' };
+
+function getDefaultBranch(pipelineName) {
+  const hay = (pipelineName || '').toLowerCase();
+  const m = hay.match(/(dev|uat|stg)/);
+  return m ? (ENV_BRANCH_MAP[m[1]] || 'master') : 'master';
+}
 let refreshTimer = null;
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
@@ -383,10 +392,11 @@ async function bulkRunPipelines() {
 
   const results = await Promise.allSettled(
     pipelines.map(async (p) => {
+      const branch = getDefaultBranch(p.pipelineName);
       const res = await fetch(`/api/pipelines/${encodeURIComponent(p.pipelineId)}/runs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
+        body: JSON.stringify({ branch })
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

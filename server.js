@@ -100,7 +100,7 @@ async function fetchPipelinesWithLatestRun(folderFilter = null) {
 
           const webUrl = latestRun
             ? latestRun._links?.web?.href ||
-              `${BASE_URL}/_build/results?buildId=${latestRun.id}`
+            `${BASE_URL}/_build/results?buildId=${latestRun.id}`
             : `${BASE_URL}/_build?definitionId=${pipeline.id}`;
           return {
             pipelineId: pipeline.id,
@@ -260,7 +260,10 @@ app.post('/api/pipelines/:id/runs', express.json(), async (req, res) => {
   const id = req.params.id;
   const { branch, resources, variables } = req.body || {};
   const body = {};
-  if (branch) body.resources = { repositories: { self: { refName: branch } } };
+  if (branch) {
+    const refName = branch.startsWith('refs/') ? branch : `refs/heads/${branch}`;
+    body.resources = { repositories: { self: { refName } } };
+  }
   if (resources) body.resources = { ...body.resources, ...resources };
   // Azure DevOps expects runParameters (string) — send JSON-stringified variables or empty object string
   body.runParameters = JSON.stringify(variables || {});

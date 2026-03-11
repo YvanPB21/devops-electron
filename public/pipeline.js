@@ -1,3 +1,12 @@
+// ── Default branch per environment ──────────────────────────────────────────
+const ENV_BRANCH_MAP = { dev: 'master', uat: 'main', stg: 'master' };
+
+function getDefaultBranch(pipelineName) {
+  const hay = (pipelineName || '').toLowerCase();
+  const m = hay.match(/(dev|uat|stg)/);
+  return m ? (ENV_BRANCH_MAP[m[1]] || 'master') : 'master';
+}
+
 // read query params
 function qs(name) {
   const params = new URLSearchParams(window.location.search);
@@ -14,6 +23,8 @@ const $error = document.getElementById('error');
 const $loading = document.getElementById('loading');
 const $runsList = document.getElementById('runs-list');
 const $runsBody = document.getElementById('runs-body');
+const $btnRun = document.getElementById('btn-run');
+const $runBranch = document.getElementById('run-branch');
 
 if (!id) {
   $error.textContent = 'ID de pipeline faltante en la URL.';
@@ -21,55 +32,20 @@ if (!id) {
   $loading.classList.add('hidden');
 } else {
   $pipelineInfo.textContent = decodeURIComponent(name);
+  // Set default branch based on pipeline environment
+  if ($runBranch) $runBranch.value = getDefaultBranch(decodeURIComponent(name));
   fetchRuns();
 }
 
-// Run button opens modal
-const $btnRun = document.getElementById('btn-run');
-const $runModal = document.getElementById('run-modal');
-const $runModalClose = document.getElementById('run-modal-close');
-const $runModalCancel = document.getElementById('run-modal-cancel');
-const $runModalSubmit = document.getElementById('run-modal-submit');
-const $modalBranch = document.getElementById('modal-branch');
-const $modalVariables = document.getElementById('modal-variables');
+// Run pipeline directly using the inline branch input
+if ($btnRun) {
+  $btnRun.addEventListener('click', async () => {
+    const branchVal = ($runBranch && $runBranch.value) || '';
 
-function openRunModal() {
-  if ($modalBranch) $modalBranch.value = 'master';
-  if ($modalVariables) $modalVariables.value = '';
-  if ($runModal) $runModal.classList.remove('hidden');
-}
-
-function closeRunModal() {
-  if ($runModal) $runModal.classList.add('hidden');
-}
-
-if ($btnRun) $btnRun.addEventListener('click', () => openRunModal());
-if ($runModalClose) $runModalClose.addEventListener('click', () => closeRunModal());
-if ($runModalCancel) $runModalCancel.addEventListener('click', () => closeRunModal());
-
-$runModal?.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeRunModal();
-});
-
-if ($runModalSubmit) {
-  $runModalSubmit.addEventListener('click', async () => {
-    const branchVal = ($modalBranch && $modalBranch.value) || '';
-    const varsText = ($modalVariables && $modalVariables.value) || '';
-    let vars = null;
-    if (varsText.trim()) {
-      try {
-        vars = JSON.parse(varsText);
-      } catch (err) {
-        alert('Variables JSON inválidas');
-        return;
-      }
-    }
-
-    $runModalSubmit.disabled = true;
+    $btnRun.disabled = true;
     try {
       const body = {};
       if (branchVal) body.branch = branchVal;
-      if (vars) body.variables = vars;
 
       const res = await fetch(`/api/pipelines/${encodeURIComponent(id)}/runs`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!res.ok) {
@@ -81,12 +57,11 @@ if ($runModalSubmit) {
       const created = j.data || j;
       if (created && created.id) {
         const r = created;
-        const row = `\n<tr>\n  <td class="px-4 py-3">#${r.id}${r.pipelineVersion? ' (v'+r.pipelineVersion+')':''}</td>\n  <td class="px-4 py-3">${makeBadge(r.state)}</td>\n  <td class="px-4 py-3">${makeBadge(r.result)}</td>\n  <td class="px-4 py-3">${formatDate(r.createdDate)}</td>\n  <td class="px-4 py-3">${r.finishedDate ? computeDuration(r.createdDate, r.finishedDate) : '—'}</td>\n  <td class="px-4 py-3"><a class="text-slate-100 bg-slate-700 px-2 py-1 rounded text-sm" href="run.html?pipelineId=${encodeURIComponent(id)}&runId=${encodeURIComponent(r.id)}">Detalles</a></td>\n  <td class="px-4 py-3">${r.webUrl ? `<a class="run-link text-sky-400" href="${r.webUrl}" target="_blank" rel="noopener">Ver ↗</a>` : '—'}</td>\n</tr>\n`;
+        const row = `\n<tr>\n  <td class="px-4 py-3">#${r.id}${r.pipelineVersion ? ' (v' + r.pipelineVersion + ')' : ''}</td>\n  <td class="px-4 py-3">${makeBadge(r.state)}</td>\n  <td class="px-4 py-3">${makeBadge(r.result)}</td>\n  <td class="px-4 py-3">${formatDate(r.createdDate)}</td>\n  <td class="px-4 py-3">${r.finishedDate ? computeDuration(r.createdDate, r.finishedDate) : '—'}</td>\n  <td class="px-4 py-3"><a class="text-slate-100 bg-slate-700 px-2 py-1 rounded text-sm" href="run.html?pipelineId=${encodeURIComponent(id)}&runId=${encodeURIComponent(r.id)}">Detalles</a></td>\n  <td class="px-4 py-3">${r.webUrl ? `<a class="run-link text-sky-400" href="${r.webUrl}" target="_blank" rel="noopener">Ver ↗</a>` : '—'}</td>\n</tr>\n`;
         $runsBody.insertAdjacentHTML('afterbegin', row);
       }
 
       alert('Run iniciado');
-      closeRunModal();
       // refresh list beginning (reset pagination)
       skip = 0;
       $runsBody.innerHTML = '';
@@ -95,7 +70,7 @@ if ($runModalSubmit) {
       alert('Error iniciando run: ' + err.message);
       console.error('run pipeline error', err);
     } finally {
-      $runModalSubmit.disabled = false;
+      $btnRun.disabled = false;
     }
   });
 }
@@ -144,7 +119,7 @@ function formatDate(iso) {
 
 function makeBadge(value) {
   if (!value) return '<span class="badge badge-unknown">—</span>';
-  const v = (value||'').toLowerCase();
+  const v = (value || '').toLowerCase();
   if (v.includes('succeed')) return '<span class="badge badge-succeeded">✅ Succeeded</span>';
   if (v.includes('fail')) return '<span class="badge badge-failed">❌ Failed</span>';
   if (v.includes('cancel')) return '<span class="badge badge-canceled">⛔ Canceled</span>';
@@ -159,7 +134,7 @@ function renderRuns(runs) {
 
   const rowsHtml = runs.map(r => `
     <tr>
-      <td class="px-4 py-3">#${r.id}${r.pipelineVersion? ' (v'+r.pipelineVersion+')':''}</td>
+      <td class="px-4 py-3">#${r.id}${r.pipelineVersion ? ' (v' + r.pipelineVersion + ')' : ''}</td>
       <td class="px-4 py-3">${makeBadge(r.state)}</td>
       <td class="px-4 py-3">${makeBadge(r.result)}</td>
       <td class="px-4 py-3">${formatDate(r.createdDate)}</td>
