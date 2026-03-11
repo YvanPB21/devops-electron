@@ -27,6 +27,9 @@ const $selectAll = document.getElementById('select-all');
 const $bulkBar = document.getElementById('bulk-action-bar');
 const $bulkCount = document.getElementById('bulk-count');
 const $btnBulkRun = document.getElementById('btn-bulk-run');
+const $btnBulkRunText = document.getElementById('btn-bulk-run-text');
+const $bulkBranchInput = document.getElementById('bulk-branch-input');
+const $bulkLoader = document.getElementById('bulk-loader');
 const $btnBulkClear = document.getElementById('btn-bulk-clear');
 let pipelinesCache = [];
 // Track which groups are expanded (store decoded group keys)
@@ -41,6 +44,13 @@ function updateBulkBar() {
   const count = selectedPipelines.size;
   $bulkCount.textContent = count;
   if (count > 0) {
+    if (!$bulkBar.classList.contains('visible')) {
+      // populate branch input based on first selection
+      const firstSelection = selectedPipelines.values().next().value;
+      if (firstSelection) {
+        $bulkBranchInput.value = getDefaultBranch(firstSelection.pipelineName);
+      }
+    }
     $bulkBar.classList.add('visible');
   } else {
     $bulkBar.classList.remove('visible');
@@ -387,11 +397,14 @@ async function bulkRunPipelines() {
   if (pipelines.length === 0) return;
 
   $btnBulkRun.disabled = true;
-  $btnBulkRun.textContent = '⏳ Running...';
+  $btnBulkRunText.textContent = 'Running...';
+  $bulkLoader.classList.remove('hidden');
+
+  const inputBranch = ($bulkBranchInput.value || '').trim();
 
   const results = await Promise.allSettled(
     pipelines.map(async (p) => {
-      const branch = getDefaultBranch(p.pipelineName);
+      const branch = inputBranch || getDefaultBranch(p.pipelineName);
       const res = await fetch(`/api/pipelines/${encodeURIComponent(p.pipelineId)}/runs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -410,7 +423,8 @@ async function bulkRunPipelines() {
 
   // Reset
   $btnBulkRun.disabled = false;
-  $btnBulkRun.textContent = '🚀 Run Selected';
+  $btnBulkRunText.textContent = '🚀 Run Selected';
+  $bulkLoader.classList.add('hidden');
   selectedPipelines.clear();
   // Uncheck all
   document.querySelectorAll('.pipeline-row-checkbox, .group-checkbox, #select-all').forEach(cb => {

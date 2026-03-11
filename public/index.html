@@ -87,7 +87,11 @@
   <!-- Floating bulk action bar -->
   <div id="bulk-action-bar" class="bulk-action-bar">
     <span class="bulk-info"><strong id="bulk-count">0</strong> pipelines seleccionados</span>
-    <button id="btn-bulk-run" class="btn-bulk-run">🚀 Run Selected</button>
+    <input type="text" id="bulk-branch-input" class="bulk-branch-input" placeholder="Branch (ej. main)" title="Rama a ejecutar" />
+    <button id="btn-bulk-run" class="btn-bulk-run">
+      <span id="btn-bulk-run-text">🚀 Run Selected</span>
+      <div id="bulk-loader" class="bulk-loader hidden"></div>
+    </button>
     <button id="btn-bulk-clear" class="btn-bulk-clear">✕ Limpiar</button>
   </div>
 

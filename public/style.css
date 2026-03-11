@@ -641,7 +641,32 @@ th .pipeline-checkbox {
   transition: all 0.15s;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+}
+
+.bulk-branch-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  padding: 7px 12px;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  width: 140px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.bulk-branch-input:focus {
+  border-color: var(--accent);
+}
+
+.bulk-loader {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 .bulk-action-bar .btn-bulk-run:hover {
