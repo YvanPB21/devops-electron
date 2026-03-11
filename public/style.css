@@ -30,7 +30,9 @@ body {
   color: var(--text);
   line-height: 1.5;
   min-height: 100vh;
+  scroll-behavior: smooth;
 }
+
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
 header {
@@ -92,12 +94,7 @@ header h1 {
   cursor: not-allowed;
 }
 
-/* ── Main ────────────────────────────────────────────────────────────────── */
-main {
-  padding: 24px;
-  max-width: 1400px;
-  margin: 0 auto;
-}
+
 
 /* ── Loading ─────────────────────────────────────────────────────────────── */
 .loading {
@@ -137,12 +134,6 @@ main {
 }
 
 /* ── Table ────────────────────────────────────────────────────────────────── */
-.table-wrapper {
-  overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
 table {
   width: 100%;
   border-collapse: collapse;
@@ -171,8 +162,13 @@ td {
   white-space: nowrap;
 }
 
+tbody tr {
+  transition: background-color 0.15s ease-in-out;
+}
+
 tbody tr:hover {
-  background: #1c2128;
+  background: rgba(88, 166, 255, 0.05);
+  /* very subtle blue tint on hover */
 }
 
 tbody tr:last-child td {
