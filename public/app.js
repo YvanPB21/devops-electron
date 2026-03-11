@@ -87,15 +87,12 @@ const STATE_CONFIG = {
     cssClass: "badge-inprogress",
   },
   cancelling: { icon: "⏳", label: "Cancelling", cssClass: "badge-canceled" },
-  notstarted: {
-    icon: "○",
-    label: "Not Started",
-    cssClass: "badge-notstarted",
-  },
+  notstarted: { icon: "🕒", label: "Queued", cssClass: "badge-queued" },
+  queued: { icon: "🕒", label: "Queued", cssClass: "badge-queued" },
   error: { icon: "💥", label: "Error", cssClass: "badge-error" },
 };
 
-function makeBadge(value, configMap) {
+function makeBadge(value, configMap, extraText = '') {
   if (!value) return '<span class="badge badge-unknown">— Sin runs</span>';
   const key = value.toLowerCase().replace(/\s/g, "");
   const cfg = configMap[key] || {
@@ -103,7 +100,8 @@ function makeBadge(value, configMap) {
     label: value,
     cssClass: "badge-unknown",
   };
-  return `<span class="badge ${cfg.cssClass}">${cfg.icon} ${cfg.label}</span>`;
+  const dispLabel = extraText ? `${cfg.label} ${extraText}` : cfg.label;
+  return `<span class="badge ${cfg.cssClass}">${cfg.icon} ${dispLabel}</span>`;
 }
 
 function formatDate(iso) {
@@ -174,13 +172,14 @@ if ($btnSettings) {
 
 function makePipelineRow(p, extraClass = '') {
   const isChecked = selectedPipelines.has(p.pipelineId);
+  const queuePosStr = p.queuePosition != null ? `(Pos: ${p.queuePosition})` : '';
   return `
     <tr class="${extraClass}">
       <td class="text-center"><input type="checkbox" class="pipeline-checkbox pipeline-row-checkbox" data-pipeline-id="${p.pipelineId}" data-pipeline-name="${escapeHtml(p.pipelineName)}" ${isChecked ? 'checked' : ''} /></td>
       <td class="pipeline-name"><a class="pipeline-link" href="pipeline.html?id=${encodeURIComponent(
     p.pipelineId
   )}&name=${encodeURIComponent(p.pipelineName)}">${escapeHtml(p.pipelineName)}</a></td>
-      <td>${makeBadge(p.state, STATE_CONFIG)}</td>
+      <td>${makeBadge(p.state, STATE_CONFIG, queuePosStr)}</td>
       <td>${makeBadge(p.result, RESULT_CONFIG)}</td>
       <td>${formatDate(p.createdDate)}</td>
       <td>${p.duration || "—"}</td>

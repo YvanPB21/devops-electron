@@ -211,6 +211,11 @@ tbody tr:last-child td {
   color: var(--blue);
 }
 
+.badge-queued {
+  background: #bb86fc20;  /* gentle purple tint */
+  color: #bb86fc;
+}
+
 .badge-notstarted {
   background: #8b949e20;
   color: var(--gray);
@@ -226,7 +231,7 @@ tbody tr:last-child td {
   color: var(--red);
 }
 
-/* ── Pulse animation for in-progress ─────────────────────────────────────── */
+/* ── Pulse animation for queued/in-progress ─────────────────────────────── */
 .badge-inprogress::before {
   content: "";
   display: inline-block;
@@ -235,6 +240,10 @@ tbody tr:last-child td {
   border-radius: 50%;
   background: var(--blue);
   animation: pulse 1.5s ease-in-out infinite;
+}
+
+.badge-queued > span {
+  display: inline-block;
 }
 
 @keyframes pulse {
@@ -247,6 +256,14 @@ tbody tr:last-child td {
   50% {
     opacity: 0.3;
   }
+}
+
+.si-queued {
+  color: #bb86fc;
+}
+
+.dot-queued {
+  background-color: #bb86fc;
 }
 
 /* ── Links ───────────────────────────────────────────────────────────────── */

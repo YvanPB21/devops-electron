@@ -39,6 +39,7 @@ let logText = '';
 let currentLogId = null;
 let showTimestamps = false;
 let lastRecords = [];
+let jobQueuePositions = {}; // Map of { jobId -> position }
 const expandedJobs = new Set(); // track which jobs are expanded in sidebar
 
 // ── Init ────────────────────────────────────────────────────────────────────
@@ -109,6 +110,24 @@ async function pollTimeline() {
 
     if (timeline && timeline.records) {
       lastRecords = timeline.records;
+      
+      // Check if there are any jobs in pending state, if so, fetch job queue positions
+      const hasPendingJobs = lastRecords.some(r => 
+        (r.type || '').toLowerCase() === 'job' && 
+        ((r.state || '').toLowerCase() === 'pending' || (r.state || '').toLowerCase() === 'notstarted' || (r.state || '').toLowerCase() === 'queued')
+      );
+      if (hasPendingJobs) {
+        try {
+          const jqRes = await fetch(`/api/pipelines/${enc(pipelineId)}/runs/${enc(runId)}/jobrequests`);
+          if (jqRes.ok) {
+            const jqJson = await jqRes.json();
+            jobQueuePositions = jqJson.data || {};
+          }
+        } catch(e) { console.warn('Could not fetch job queue positions', e); }
+      } else {
+        jobQueuePositions = {}; // Clear if no longer pending
+      }
+
       updateSidebarStatuses(timeline.records);
       // Also update step list for expanded jobs (new steps may have appeared)
       updateExpandedJobSteps(timeline.records);
@@ -140,6 +159,9 @@ function renderRunStatus(run) {
     badge = '<span class="badge badge-inprogress"><span class="status-spinner"></span> In Progress</span>';
   } else if (state === 'cancelling') {
     badge = '<span class="badge badge-canceled">⏳ Cancelling</span>';
+  } else if (state === 'notstarted' || state === 'queued' || state === 'postponed') {
+    const qStr = run.queuePosition != null ? ` (Pos: ${run.queuePosition})` : '';
+    badge = `<span class="badge badge-queued">🕒 Queued${qStr}</span>`;
   } else {
     badge = `<span class="badge badge-unknown">${esc(run.state || '—')}</span>`;
   }
@@ -209,8 +231,9 @@ function renderSidebarJob(j, records) {
   return `<div class="sidebar-job-group" data-job-group-id="${j.id}">
     <div class="sidebar-job ${isSelected ? 'selected' : ''}" data-job-id="${j.id}" data-has-steps="${hasSteps}">
       ${hasSteps ? `<span class="sidebar-job-caret ${isExpanded ? 'expanded' : ''}" data-toggle-job="${j.id}">▶</span>` : '<span class="sidebar-job-caret-spacer"></span>'}
-      <span class="sidebar-job-icon" data-record-id="${j.id}">${statusIcon(j)}</span>
+      <span class="sidebar-job-icon" data-record-id="${j.id}">${statusIcon(j, true)}</span>
       <span class="sidebar-job-name">JOB: ${esc(j.name)}</span>
+      <span class="sidebar-job-queue-pos" data-queue-job-id="${j.id}">${jobQueuePositions[j.id] ? `<span class="badge badge-queued" style="font-size: 0.65rem; padding: 1px 4px; margin-left: 6px;">Pos: ${jobQueuePositions[j.id]}</span>` : ''}</span>
     </div>
     ${hasSteps ? `<div class="sidebar-steps ${isExpanded ? '' : 'hidden'}" id="steps-${j.id}">
       ${steps.map(s => renderSidebarStep(s)).join('')}
@@ -313,12 +336,22 @@ function updateSidebarStatuses(records) {
     if (el.classList.contains('stage-dot')) {
       el.outerHTML = statusDot(r);
     } else {
-      el.innerHTML = statusIcon(r);
+      el.innerHTML = statusIcon(r, true);
+    }
+  });
+
+  // Update job queue positions
+  $sidebarBody.querySelectorAll('.sidebar-job-queue-pos').forEach(el => {
+    const rid = el.getAttribute('data-queue-job-id');
+    if (jobQueuePositions[rid]) {
+      el.innerHTML = `<span class="badge badge-queued" style="font-size: 0.65rem; padding: 1px 4px; margin-left: 6px;">Pos: ${jobQueuePositions[rid]}</span>`;
+    } else {
+      el.innerHTML = '';
     }
   });
 }
 
-function statusIcon(record) {
+function statusIcon(record, isSidebar = false) {
   const s = ((record.result || record.state || 'pending').toLowerCase());
   if (s.includes('succeed')) return '<span class="si si-ok">✅</span>';
   if (s.includes('fail')) return '<span class="si si-fail">❌</span>';
@@ -326,6 +359,11 @@ function statusIcon(record) {
   if (s.includes('progress') || s.includes('running'))
     return '<span class="si si-running"><span class="status-spinner"></span></span>';
   if (s.includes('skipped')) return '<span class="si si-skip">⏭️</span>';
+  
+  if (s === 'notstarted' || s === 'queued' || s === 'pending') {
+    return '<span class="si si-queued">🕒</span>';
+  }
+  
   return '<span class="si si-pending">○</span>';
 }
 
@@ -336,6 +374,7 @@ function statusDot(record) {
   else if (s.includes('fail')) cls = 'dot-fail';
   else if (s.includes('cancel')) cls = 'dot-cancel';
   else if (s.includes('progress') || s.includes('running')) cls = 'dot-running';
+  else if (s === 'notstarted' || s === 'queued') cls = 'dot-queued';
   return `<span class="stage-dot ${cls}" data-record-id="${record.id}"></span>`;
 }
 

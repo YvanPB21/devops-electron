@@ -57,7 +57,7 @@ if ($btnRun) {
       const created = j.data || j;
       if (created && created.id) {
         const r = created;
-        const row = `\n<tr>\n  <td class="px-4 py-3">#${r.id}${r.pipelineVersion ? ' (v' + r.pipelineVersion + ')' : ''}</td>\n  <td class="px-4 py-3">${makeBadge(r.state)}</td>\n  <td class="px-4 py-3">${makeBadge(r.result)}</td>\n  <td class="px-4 py-3">${formatDate(r.createdDate)}</td>\n  <td class="px-4 py-3">${r.finishedDate ? computeDuration(r.createdDate, r.finishedDate) : '—'}</td>\n  <td class="px-4 py-3"><a class="text-slate-100 bg-slate-700 px-2 py-1 rounded text-sm" href="run.html?pipelineId=${encodeURIComponent(id)}&runId=${encodeURIComponent(r.id)}">Detalles</a></td>\n  <td class="px-4 py-3">${r.webUrl ? `<a class="run-link text-sky-400" href="${r.webUrl}" target="_blank" rel="noopener">Ver ↗</a>` : '—'}</td>\n</tr>\n`;
+        const row = `\n<tr>\n  <td class="px-4 py-3">#${r.id}${r.pipelineVersion ? ' (v' + r.pipelineVersion + ')' : ''}</td>\n  <td class="px-4 py-3">${makeBadge(r.state, r.queuePosition)}</td>\n  <td class="px-4 py-3">${makeBadge(r.result)}</td>\n  <td class="px-4 py-3">${formatDate(r.createdDate)}</td>\n  <td class="px-4 py-3">${r.finishedDate ? computeDuration(r.createdDate, r.finishedDate) : '—'}</td>\n  <td class="px-4 py-3"><a class="text-slate-100 bg-slate-700 px-2 py-1 rounded text-sm" href="run.html?pipelineId=${encodeURIComponent(id)}&runId=${encodeURIComponent(r.id)}">Detalles</a></td>\n  <td class="px-4 py-3">${r.webUrl ? `<a class="run-link text-sky-400" href="${r.webUrl}" target="_blank" rel="noopener">Ver ↗</a>` : '—'}</td>\n</tr>\n`;
         $runsBody.insertAdjacentHTML('afterbegin', row);
       }
 
@@ -117,12 +117,19 @@ function formatDate(iso) {
   return d.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function makeBadge(value) {
+function makeBadge(value, queuePosition) {
   if (!value) return '<span class="badge badge-unknown">—</span>';
   const v = (value || '').toLowerCase();
+  
   if (v.includes('succeed')) return '<span class="badge badge-succeeded">✅ Succeeded</span>';
   if (v.includes('fail')) return '<span class="badge badge-failed">❌ Failed</span>';
   if (v.includes('cancel')) return '<span class="badge badge-canceled">⛔ Canceled</span>';
+  
+  if (v === 'notstarted' || v === 'queued' || v === 'postponed') {
+    const qStr = queuePosition != null ? ` (Pos: ${queuePosition})` : '';
+    return `<span class="badge badge-queued">🕒 Queued${qStr}</span>`;
+  }
+  
   return `<span class="badge badge-inprogress">${value}</span>`;
 }
 
@@ -135,7 +142,7 @@ function renderRuns(runs) {
   const rowsHtml = runs.map(r => `
     <tr>
       <td class="px-4 py-3">#${r.id}${r.pipelineVersion ? ' (v' + r.pipelineVersion + ')' : ''}</td>
-      <td class="px-4 py-3">${makeBadge(r.state)}</td>
+      <td class="px-4 py-3">${makeBadge(r.state, r.queuePosition)}</td>
       <td class="px-4 py-3">${makeBadge(r.result)}</td>
       <td class="px-4 py-3">${formatDate(r.createdDate)}</td>
       <td class="px-4 py-3">${r.finishedDate ? computeDuration(r.createdDate, r.finishedDate) : '—'}</td>

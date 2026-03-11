@@ -17,6 +17,7 @@ if (!AZDO_ORG || !AZDO_PROJECT || !AZDO_PAT) {
 
 // ── Configuración Azure DevOps ──────────────────────────────────────────────
 const BASE_URL = `https://dev.azure.com/${AZDO_ORG}/${AZDO_PROJECT}`;
+const DIST_TASK_URL = `https://dev.azure.com/${AZDO_ORG}/_apis/distributedtask`;
 const AUTH_HEADER =
   "Basic " + Buffer.from(":" + AZDO_PAT).toString("base64");
 
@@ -102,12 +103,26 @@ async function fetchPipelinesWithLatestRun(folderFilter = null) {
             ? latestRun._links?.web?.href ||
             `${BASE_URL}/_build/results?buildId=${latestRun.id}`
             : `${BASE_URL}/_build?definitionId=${pipeline.id}`;
+          let queuePosition = null;
+          if (latestRun) {
+            const st = (latestRun.state || "").toLowerCase();
+            if (st === "notstarted" || st === "queued" || st === "postponed") {
+              try {
+                const buildRes = await azdoFetch(`${BASE_URL}/_apis/build/builds/${latestRun.id}?api-version=6.0`);
+                if (buildRes && buildRes.queuePosition != null) {
+                  queuePosition = buildRes.queuePosition;
+                }
+              } catch (e) { /* ignore */ }
+            }
+          }
+
           return {
             pipelineId: pipeline.id,
             pipelineName: pipeline.name,
             folder: pipeline.folder || "\\",
             state: latestRun?.state || null,
             result: latestRun?.result || null,
+            queuePosition,
             createdDate: latestRun?.createdDate || null,
             finishedDate: latestRun?.finishedDate || null,
             duration: latestRun
@@ -124,6 +139,7 @@ async function fetchPipelinesWithLatestRun(folderFilter = null) {
             folder: pipeline.folder || "\\",
             state: "error",
             result: "error",
+            queuePosition: null,
             createdDate: null,
             finishedDate: null,
             duration: null,
@@ -157,6 +173,7 @@ async function fetchPipelinesBasic(folderFilter = null) {
     folder: pipeline.folder || "\\",
     state: null,
     result: null,
+    queuePosition: null,
     createdDate: null,
     finishedDate: null,
     duration: null,
@@ -235,16 +252,31 @@ app.get("/api/pipelines/:id/runs", async (req, res) => {
     const runsRes = await azdoFetch(
       `${BASE_URL}/_apis/pipelines/${encodeURIComponent(id)}/runs?$top=${top}&$skip=${skip}&api-version=7.1`
     );
-    const items = (runsRes.value || []).map((run) => ({
-      id: run.id,
-      state: run.state || null,
-      result: run.result || null,
-      createdDate: run.createdDate || null,
-      finishedDate: run.finishedDate || null,
-      webUrl: run._links?.web?.href || null,
-      pipelineId: id,
-      pipelineVersion: run.pipeline?.version || null,
-      sourceBranch: run.sourceReference || run.sourceBranch || null,
+    const rawItems = runsRes.value || [];
+    const items = await Promise.all(rawItems.map(async (run) => {
+      let queuePosition = null;
+      const st = (run.state || "").toLowerCase();
+      if (st === "notstarted" || st === "queued" || st === "postponed") {
+        try {
+          const buildRes = await azdoFetch(`${BASE_URL}/_apis/build/builds/${run.id}?api-version=6.0`);
+          if (buildRes && buildRes.queuePosition != null) {
+            queuePosition = buildRes.queuePosition;
+          }
+        } catch (e) { /* ignore */ }
+      }
+
+      return {
+        id: run.id,
+        state: run.state || null,
+        result: run.result || null,
+        queuePosition,
+        createdDate: run.createdDate || null,
+        finishedDate: run.finishedDate || null,
+        webUrl: run._links?.web?.href || null,
+        pipelineId: id,
+        pipelineVersion: run.pipeline?.version || null,
+        sourceBranch: run.sourceReference || run.sourceBranch || null,
+      };
     }));
 
     return res.json({ data: items, cached: false });
@@ -295,6 +327,18 @@ app.get('/api/pipelines/:pipelineId/runs/:runId', async (req, res) => {
   try {
     const runDetail = await azdoFetch(`${BASE_URL}/_apis/pipelines/${encodeURIComponent(pipelineId)}/runs/${encodeURIComponent(runId)}?api-version=7.1`);
 
+    let queuePosition = null;
+    const st = (runDetail.state || "").toLowerCase();
+    if (st === "notstarted" || st === "queued" || st === "postponed") {
+      try {
+        const buildRes = await azdoFetch(`${BASE_URL}/_apis/build/builds/${runDetail.id}?api-version=6.0`);
+        if (buildRes && buildRes.queuePosition != null) {
+          queuePosition = buildRes.queuePosition;
+        }
+      } catch (e) { /* ignore */ }
+    }
+    runDetail.queuePosition = queuePosition;
+
     // Try to fetch build timeline and logs (best-effort)
     let timeline = null;
     let logs = null;
@@ -315,6 +359,82 @@ app.get('/api/pipelines/:pipelineId/runs/:runId', async (req, res) => {
     console.error('Error en /api/pipelines/:pipelineId/runs/:runId', err.message);
     const status = err.status || 500;
     return res.status(status).json({ error: 'No se pudo obtener detalle del run', detail: err.message });
+  }
+});
+
+// Obtener posiciones en cola de los jobs pendientes (best-effort por pool)
+app.get('/api/pipelines/:pipelineId/runs/:runId/jobrequests', async (req, res) => {
+  const { runId } = req.params;
+  try {
+    // 1. Obtenemos el timeline para ver qué jobs están pending
+    const timeline = await azdoFetch(`${BASE_URL}/_apis/build/builds/${encodeURIComponent(runId)}/timeline?api-version=6.0`);
+    const records = timeline.records || [];
+    
+    // Filtramos jobs pendientes
+    const pendingJobs = records.filter(r => 
+      (r.type || '').toLowerCase() === 'job' && 
+      (r.state === 'pending' || r.state === 'notStarted' || r.state === 'queued')
+    );
+
+    if (pendingJobs.length === 0) {
+      return res.json({ data: {} }); 
+    }
+
+    // 2. Resolve queueId -> poolId via the agent queues API
+    const queueIds = [...new Set(pendingJobs.map(j => j.queueId).filter(Boolean))];
+    const queueToPool = {};
+    for (const qId of queueIds) {
+      try {
+        const qInfo = await azdoFetch(`${BASE_URL}/_apis/distributedtask/queues/${qId}?api-version=6.0-preview.1`);
+        if (qInfo && qInfo.pool && qInfo.pool.id) {
+          queueToPool[qId] = qInfo.pool.id;
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // 3. Group pending jobs by resolved poolId
+    const jobPositions = {};
+    const poolMap = {};
+    for (const job of pendingJobs) {
+      const poolId = queueToPool[job.queueId];
+      if (poolId) {
+        (poolMap[poolId] = poolMap[poolId] || []).push(job);
+      }
+    }
+    
+    for (const poolId of Object.keys(poolMap)) {
+      try {
+        // Get the list of jobrequests to find the requestId for each pending job
+        const jobsRes = await azdoFetch(`${DIST_TASK_URL}/pools/${poolId}/jobrequests?api-version=5.0-preview.1`);
+        const queuedRequests = (jobsRes.value || []).filter(j => !j.receiveTime);
+        
+        for (const job of poolMap[poolId]) {
+          // Match by planId (timeline.id) + jobId, or just planId
+          const myReq = queuedRequests.find(qr => qr.planId === timeline.id && qr.jobId === job.id)
+                     || queuedRequests.find(qr => qr.planId === timeline.id);
+          if (myReq) {
+            // 4. Fetch individual jobrequest with includeStatus=true to get the real position
+            try {
+              const detail = await azdoFetch(`${DIST_TASK_URL}/pools/${poolId}/jobrequests/${myReq.requestId}?includeStatus=true&api-version=5.0-preview.1`);
+              if (detail.statusMessage) {
+                // Parse "Current position in queue: X" from statusMessage
+                const match = detail.statusMessage.match(/position in queue:\s*(\d+)/i);
+                if (match) {
+                  jobPositions[job.id] = parseInt(match[1], 10);
+                }
+              }
+            } catch (e) { /* ignore individual fetch errors */ }
+          }
+        }
+      } catch (e) {
+        console.error(`Error fetching pool ${poolId} jobrequests:`, e.message);
+      }
+    }
+
+    return res.json({ data: jobPositions });
+  } catch (err) {
+    console.error('Error en jobrequests:', err.message);
+    return res.json({ data: {} });
   }
 });
 
